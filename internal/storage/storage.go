@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -93,10 +95,78 @@ type Expense struct {
 	Date        time.Time `json:"date"`
 }
 
+// UserDefaults represents the structure of user-defaults.json
+type UserDefaults struct {
+	Categories []string `json:"categories"`
+	Currency   string   `json:"currency"`
+	StartDate  int      `json:"startDate"`
+	Theme      string   `json:"theme"`
+}
+
+// LoadUserDefaults reads user-defaults.json from the root directory
+func LoadUserDefaults() (*UserDefaults, error) {
+	// Try to find user-defaults.json in the current directory or parent directories
+	paths := []string{
+		"user-defaults.json",
+		"../user-defaults.json",
+		"../../user-defaults.json",
+	}
+
+	var data []byte
+	var err error
+	found := false
+
+	for _, path := range paths {
+		data, err = os.ReadFile(path)
+		if err == nil {
+			found = true
+			break
+		}
+	}
+
+	// If not found in any of those paths, return nil (will use hardcoded defaults)
+	if !found {
+		return nil, nil
+	}
+
+	var defaults UserDefaults
+	if err := json.Unmarshal(data, &defaults); err != nil {
+		return nil, fmt.Errorf("failed to parse user-defaults.json: %w", err)
+	}
+
+	return &defaults, nil
+}
+
 func (c *Config) SetBaseConfig() {
-	c.Categories = defaultCategories
-	c.Currency = "usd"
-	c.StartDate = 1
+	// Try to load user defaults from JSON file
+	userDefaults, err := LoadUserDefaults()
+
+	if err == nil && userDefaults != nil {
+		// Use user-provided defaults
+		if len(userDefaults.Categories) > 0 {
+			c.Categories = userDefaults.Categories
+		} else {
+			c.Categories = defaultCategories
+		}
+
+		if userDefaults.Currency != "" {
+			c.Currency = userDefaults.Currency
+		} else {
+			c.Currency = "usd"
+		}
+
+		if userDefaults.StartDate >= 1 && userDefaults.StartDate <= 31 {
+			c.StartDate = userDefaults.StartDate
+		} else {
+			c.StartDate = 1
+		}
+	} else {
+		// Fall back to hardcoded defaults
+		c.Categories = defaultCategories
+		c.Currency = "usd"
+		c.StartDate = 1
+	}
+
 	// c.Tags = []string{}
 	c.RecurringExpenses = []RecurringExpense{}
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 
 	"github.com/tanq16/expenseowl/internal/api"
 	"github.com/tanq16/expenseowl/internal/storage"
@@ -94,7 +96,15 @@ func runServer(port int) {
 }
 
 func main() {
-	port := flag.Int("port", 8080, "Port to serve from")
+	// Check for PORT environment variable first, then fall back to flag
+	defaultPort := 8080
+	if envPort := os.Getenv("PORT"); envPort != "" {
+		if p, err := strconv.Atoi(envPort); err == nil {
+			defaultPort = p
+		}
+	}
+
+	port := flag.Int("port", defaultPort, "Port to serve from")
 	flag.Parse()
 	runServer(*port)
 }
