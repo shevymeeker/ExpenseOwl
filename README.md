@@ -157,6 +157,9 @@ Since writing the app, I've found a ton of ways applications handle expenses. Re
 
 ### Configuration Options
 
+> [!TIP]
+> **New!** For a comprehensive, easy-to-follow configuration guide, see [CONFIGURATION.md](./CONFIGURATION.md). It includes details on the new `.env` file and `user-defaults.json` for simple customization.
+
 With the exception of [Data backends](#data-backends), all configuration of ExpenseOwl happens via the application UI. The list of all such options available via the settings page (`/settings` endpoint) is as follows:
 
 - Category Settings:
