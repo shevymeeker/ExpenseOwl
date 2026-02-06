@@ -68,8 +68,6 @@ func runServer(port int) {
 	http.HandleFunc("/currency/edit", handler.UpdateCurrency)
 	http.HandleFunc("/startdate", handler.GetStartDate)
 	http.HandleFunc("/startdate/edit", handler.UpdateStartDate)
-	// http.HandleFunc("/tags", handler.GetTags)
-	// http.HandleFunc("/tags/edit", handler.UpdateTags)
 
 	// Expenses
 	http.HandleFunc("/expense", handler.AddExpense)                     // PUT for add
@@ -87,7 +85,6 @@ func runServer(port int) {
 	// Import/Export
 	http.HandleFunc("/export/csv", handler.ExportCSV)
 	http.HandleFunc("/import/csv", handler.ImportCSV)
-	http.HandleFunc("/import/csvold", handler.ImportOldCSV)
 
 	log.Println("Starting server on port", port, "...")
 	if err := http.ListenAndServe(fmt.Sprint(":", port), nil); err != nil {

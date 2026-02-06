@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -18,8 +17,6 @@ type Storage interface {
 	// Basic Config Updates
 	GetCategories() ([]string, error)
 	UpdateCategories(categories []string) error
-	// GetTags() ([]string, error)
-	// UpdateTags(tags []string) error
 	GetCurrency() (string, error)
 	UpdateCurrency(currency string) error
 	GetStartDate() (int, error)
@@ -41,9 +38,6 @@ type Storage interface {
 	RemoveMultipleExpenses(ids []string) error
 	UpdateExpense(id string, expense Expense) error
 
-	// Potential Future Feature: Multi-currency
-	// GetConversions() (map[string]float64, error)
-	// UpdateConversions(conversions map[string]float64) error
 }
 
 // config for expense data
@@ -52,7 +46,6 @@ type Config struct {
 	Currency          string             `json:"currency"`
 	StartDate         int                `json:"startDate"`
 	RecurringExpenses []RecurringExpense `json:"recurringExpenses"`
-	// Tags              []string           `json:"tags"`
 }
 
 type RecurringExpense struct {
@@ -167,7 +160,6 @@ func (c *Config) SetBaseConfig() {
 		c.StartDate = 1
 	}
 
-	// c.Tags = []string{}
 	c.RecurringExpenses = []RecurringExpense{}
 }
 
@@ -248,9 +240,6 @@ func (e *Expense) Validate() error {
 	if e.Amount == 0 {
 		return fmt.Errorf("expense 'amount' cannot be 0")
 	}
-	// if e.Currency == "" {
-	// 	return fmt.Errorf("expense 'currency' cannot be empty")
-	// }
 	if len(e.Tags) > 0 {
 		var cleanedTags []string
 		for _, tag := range e.Tags {

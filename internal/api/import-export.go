@@ -43,7 +43,6 @@ func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 			expense.ID,
 			expense.Name,
 			expense.Category,
-			// expense.Currency,
 			strconv.FormatFloat(expense.Amount, 'f', 2, 64),
 			expense.Date.Format(time.RFC3339),
 			strings.Join(expense.Tags, ","),
@@ -112,7 +111,6 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	var newCategories []string
 	var importedCount, skippedCount int
-	// TODO: might be worth setting default currency when we have currency updation behavior
 	currencyVal, err := h.storage.GetCurrency()
 	if err != nil {
 		log.Printf("Error: Could not retrieve currency, shutting down import: %v\n", err)
@@ -197,123 +195,6 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 		}
 		importedCount++
 		time.Sleep(10 * time.Millisecond) // Throttle to reduce storage overhead
-	}
-
-	if len(newCategories) > 0 {
-		if err := h.storage.UpdateCategories(append(currentCategories, newCategories...)); err != nil {
-			log.Printf("Warning: Failed to add new categories to config: %v\n", err)
-		}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"status":          "success",
-		"total_processed": len(records) - 1,
-		"imported":        importedCount,
-		"skipped":         skippedCount,
-		"new_categories":  newCategories,
-	})
-	log.Printf("HTTP: Imported %d expenses from CSV file. Skipped %d records.", importedCount, skippedCount)
-}
-
-// handles importing from ExpenseOwl < v4.0
-// TODO: remove this in the future
-func (h *Handler) ImportOldCSV(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
-		return
-	}
-	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB max file size
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Could not parse multipart form"})
-		return
-	}
-	file, _, err := r.FormFile("file")
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Error retrieving the file"})
-		return
-	}
-	defer file.Close()
-	reader := csv.NewReader(file)
-	records, err := reader.ReadAll()
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Failed to read CSV file"})
-		return
-	}
-	if len(records) < 2 {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "CSV file must have a header and at least one data row"})
-		return
-	}
-
-	header := records[0]
-	colMap := make(map[string]int)
-	for i, col := range header {
-		colMap[strings.ToLower(strings.TrimSpace(col))] = i
-	}
-	requiredCols := []string{"name", "category", "amount", "date"}
-	for _, col := range requiredCols {
-		if _, ok := colMap[col]; !ok {
-			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("Missing required column: %s", col)})
-			return
-		}
-	}
-
-	currentCategories, err := h.storage.GetCategories()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Could not retrieve current categories"})
-		return
-	}
-	categorySet := make(map[string]bool)
-	for _, cat := range currentCategories {
-		categorySet[strings.ToLower(cat)] = true
-	}
-	var newCategories []string
-	var importedCount, skippedCount int
-
-	for i, record := range records[1:] {
-		if len(record) != len(header) {
-			log.Printf("Warning: Skipping row %d due to incorrect column count\n", i+2)
-			skippedCount++
-			continue
-		}
-		amount, err := strconv.ParseFloat(record[colMap["amount"]], 64)
-		if err != nil {
-			log.Printf("Warning: Skipping row %d due to invalid amount: %s\n", i+2, record[colMap["amount"]])
-			skippedCount++
-			continue
-		}
-		date, err := parseDate(record[colMap["date"]])
-		if err != nil {
-			log.Printf("Warning: Skipping row %d due to invalid date: %v\n", i+2, err)
-			skippedCount++
-			continue
-		}
-		category := strings.TrimSpace(record[colMap["category"]])
-		if _, ok := categorySet[strings.ToLower(category)]; !ok {
-			newCategories = append(newCategories, category)
-			categorySet[strings.ToLower(category)] = true // Add to set to handle duplicates in the same file
-		}
-
-		// switches sign for new expenseowl
-		amountUpdated := amount
-		if category != "Income" {
-			amountUpdated = amount * -1
-		}
-		expense := storage.Expense{
-			Name:     strings.TrimSpace(record[colMap["name"]]),
-			Category: category,
-			Amount:   amountUpdated,
-			Date:     date,
-		}
-		if err := expense.Validate(); err != nil {
-			log.Printf("Warning: Skipping row %d due to validation error: %v\n", i+2, err)
-			skippedCount++
-			continue
-		}
-		if err := h.storage.AddExpense(expense); err != nil {
-			log.Printf("Error: Could not add expense from row %d: %v\n", i+2, err)
-			skippedCount++
-			continue
-		}
-		importedCount++
-		time.Sleep(10 * time.Millisecond)
 	}
 
 	if len(newCategories) > 0 {

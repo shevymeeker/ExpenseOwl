@@ -280,7 +280,6 @@ func (s *databaseStore) UpdateExpense(id string, expense Expense) error {
 	if err != nil {
 		return err
 	}
-	// TODO: revisit to maybe remove this later, might not be a good default for update
 	if expense.Currency == "" {
 		expense.Currency = s.defaults["currency"]
 	}
@@ -545,9 +544,6 @@ func generateExpensesFromRecurring(recExp RecurringExpense, fromToday bool) []Ex
 		}
 	}
 	limit := occurrencesToGenerate
-	// if recExp.Occurrences == 0 {
-	// 	limit = 2000 // Heuristic for "indefinite"
-	// }
 
 	for range limit {
 		expense := Expense{
