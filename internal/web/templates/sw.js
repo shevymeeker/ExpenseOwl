@@ -1,4 +1,4 @@
-const CACHE_NAME = 'expenseowl-v1';
+const CACHE_NAME = 'expenseowl-v2';
 const STATIC_ASSETS = [
     '/',
     '/table',
@@ -10,7 +10,11 @@ const STATIC_ASSETS = [
     '/manifest.json',
     '/favicon.ico',
     '/pwa/icon-192.png',
-    '/pwa/icon-512.png'
+    '/pwa/icon-512.png',
+    '/webfonts/fa-solid-900.woff2',
+    '/webfonts/fa-regular-400.woff2',
+    '/webfonts/fa-brands-400.woff2',
+    '/webfonts/fa-v4compatibility.woff2'
 ];
 
 self.addEventListener('install', (event) => {
@@ -32,7 +36,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // API calls: network only (never cache mutable data)
+    // API calls: network-first, return error JSON when offline
     if (url.pathname.startsWith('/expense') ||
         url.pathname.startsWith('/recurring') ||
         url.pathname.startsWith('/config') ||
@@ -42,7 +46,14 @@ self.addEventListener('fetch', (event) => {
         url.pathname.startsWith('/export') ||
         url.pathname.startsWith('/import') ||
         url.pathname.startsWith('/version')) {
-        event.respondWith(fetch(event.request));
+        event.respondWith(
+            fetch(event.request).catch(() =>
+                new Response(JSON.stringify({ error: 'You are offline' }), {
+                    status: 503,
+                    headers: { 'Content-Type': 'application/json' }
+                })
+            )
+        );
         return;
     }
 
